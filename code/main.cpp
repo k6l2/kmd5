@@ -53,6 +53,7 @@ static bool writeEntireFile(const fs::path::value_type* fileName,
                             const wchar_t* nullTerminatedFileData, 
                             bool appendWriteMode)
 {
+	const bool fileExists = fs::directory_entry(fileName).exists();
 #if _MSC_VER
 	FILE* file = _wfopen(fileName, appendWriteMode ? L"ab" : L"wb");
 #else
@@ -60,6 +61,18 @@ static bool writeEntireFile(const fs::path::value_type* fileName,
 #endif
 	if(file)
 	{
+		if(!fileExists)
+		{
+			static const char*const headerUtf16 = "\xff\xfe";
+			const size_t elementsWritten = 
+				fwrite(headerUtf16, sizeof(char), 2, file);
+			if(elementsWritten != 2)
+			{
+				fprintf(stderr, "Failed to write utf16 header to '%ws'!\n", 
+				        fileName);
+				return false;
+			}
+		}
 		const size_t elementSize = sizeof(wchar_t);
 		const size_t fileDataElementCount = 
 			wstring(nullTerminatedFileData).size();
