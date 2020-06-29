@@ -13,7 +13,6 @@
 				[ "${env:KML_HOME}\\code"
 				, "${env:KML_HOME}\\build"
 				, "kml-code-hash.txt"
-				, "--append"
 				, "--verbose"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",

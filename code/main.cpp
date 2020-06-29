@@ -5,9 +5,9 @@ namespace fs = std::filesystem;
 #include <chrono>
 namespace chrono = std::chrono;
 #include <string>
-using std::wstring;
+using std::string;
 #include <sstream>
-using std::wstringstream;
+using std::stringstream;
 #include "md5.h"
 static bool g_verbose;
 /** @return null-ternimated c-string of the entire file's contents */
@@ -50,10 +50,9 @@ static char* readEntireFile(const fs::path::value_type* fileName,
 	}
 }
 static bool writeEntireFile(const fs::path::value_type* fileName, 
-                            const wchar_t* nullTerminatedFileData, 
+                            const char* nullTerminatedFileData, 
                             bool appendWriteMode)
 {
-	const bool fileExists = fs::directory_entry(fileName).exists();
 #if _MSC_VER
 	FILE* file = _wfopen(fileName, appendWriteMode ? L"ab" : L"wb");
 #else
@@ -61,21 +60,9 @@ static bool writeEntireFile(const fs::path::value_type* fileName,
 #endif
 	if(file)
 	{
-		if(!fileExists)
-		{
-			static const char*const headerUtf16 = "\xff\xfe";
-			const size_t elementsWritten = 
-				fwrite(headerUtf16, sizeof(char), 2, file);
-			if(elementsWritten != 2)
-			{
-				fprintf(stderr, "Failed to write utf16 header to '%ws'!\n", 
-				        fileName);
-				return false;
-			}
-		}
-		const size_t elementSize = sizeof(wchar_t);
+		const size_t elementSize = sizeof(nullTerminatedFileData[0]);
 		const size_t fileDataElementCount = 
-			wstring(nullTerminatedFileData).size();
+			string(nullTerminatedFileData).size();
 		const size_t elementsWritten = 
 			fwrite(nullTerminatedFileData, elementSize, 
 			       fileDataElementCount, file);
@@ -138,7 +125,7 @@ int main(int argc, char** argv)
 		       pathInputDirectory.c_str());
 	}
 	MD5_CTX mdContext;
-	wstring output;
+	string output;
 	for(const fs::directory_entry& entry : 
 		fs::recursive_directory_iterator(pathInputDirectory))
 	{
@@ -161,18 +148,18 @@ int main(int argc, char** argv)
 		}
 		if(g_verbose)
 		{
-			printf("'%ws';",entry.path().c_str());
+			printf("'%s';",(char*)entry.path().u8string().c_str());
 			for (unsigned i = 0; i < 16; i++)
 				printf ("%02x", mdContext.digest[i]);
 			printf("\n");
 		}
-		wstringstream wss;
-		wss << entry.path().c_str() << ";";
-		wss << std::setfill(L'0') << std::hex;
+		stringstream ss;
+		ss << (char*)entry.path().u8string().c_str() << ";";
+		ss << std::setfill('0') << std::hex;
 		for (unsigned i = 0; i < 16; i++)
-			wss << std::setw(2) << mdContext.digest[i];
-		wss << "\n";
-		output.append(wss.str());
+			ss << std::setw(2) << static_cast<int>(mdContext.digest[i]);
+		ss << "\n";
+		output.append(ss.str());
 	}
 	// write the output file //
 	fs::create_directories(pathOutputDirectory);
